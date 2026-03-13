@@ -308,45 +308,80 @@ lista.appendChild(li);
 
 }
 
-// ====== PEDIR PERMISSÃO DA CÂMERA ======
+// ====== SCANNER DE CÓDIGO DE BARRAS ======
 
-btnCamera.onclick=async()=>{
+let scannerAtivo = false;
+
+btnCamera.onclick = async () => {
 
 try{
 
-await navigator.mediaDevices.getUserMedia({video:true});
+await navigator.mediaDevices.getUserMedia({ video: true });
 
 iniciarScanner();
 
-}catch{
+}catch(e){
 
 alert("Você precisa permitir o uso da câmera");
 
 }
 
-}
-
-// ====== INICIAR SCANNER ======
+};
 
 function iniciarScanner(){
+
+if(scannerAtivo) return;
+
+scannerAtivo = true;
 
 Quagga.init({
 
 inputStream:{
+
+name:"Live",
+
 type:"LiveStream",
-target:camera,
-constraints:{facingMode:"environment"}
+
+target:document.querySelector('#camera'),
+
+constraints:{
+facingMode:"environment",
+width:640,
+height:480
+}
+
 },
 
+locator:{
+patchSize:"medium",
+halfSample:true
+},
+
+numOfWorkers:4,
+
 decoder:{
-readers:["ean_reader","ean_13_reader","upc_reader"]
-}
+
+readers:[
+"ean_reader",
+"ean_13_reader",
+"upc_reader",
+"code_128_reader"
+]
+
+},
+
+locate:true
 
 },function(err){
 
 if(err){
 
+console.log(err);
+
 alert("Erro ao iniciar câmera");
+
+scannerAtivo=false;
+
 return;
 
 }
@@ -356,6 +391,20 @@ Quagga.start();
 });
 
 }
+
+Quagga.onDetected(function(result){
+
+let codigo = result.codeResult.code;
+
+barcode.value = codigo;
+
+Quagga.stop();
+
+scannerAtivo=false;
+
+alert("Código detectado: " + codigo);
+
+});
 
 // ====== DETECTAR CÓDIGO ======
 
