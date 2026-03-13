@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>ScanFood</title>
+
+<script src="https://unpkg.com/quagga/dist/quagga.min.js"></script>
+
+<style>
+
+body{
+font-family:Arial;
+background:#e8f6ef;
+text-align:center;
+padding:20px;
+}
+
+.container{
+background:white;
+padding:20px;
+border-radius:10px;
+max-width:420px;
+margin:auto;
+box-shadow:0 3px 10px rgba(0,0,0,.15);
+}
+
+input{
+width:100%;
+padding:10px;
+margin-top:10px;
+border-radius:6px;
+border:1px solid #ccc;
+}
+
+button{
+width:100%;
+padding:12px;
+margin-top:10px;
+border:none;
+border-radius:6px;
+font-size:16px;
+cursor:pointer;
+}
+
+#btnVerificar{
+background:#1c8e4e;
+color:white;
+opacity:.5;
+pointer-events:none;
+}
+
+#btnCamera{
+background:#0a6bc2;
+color:white;
+}
+
+#btnLimpar{
+background:#333;
+color:white;
+}
+
+textarea{
+width:100%;
+height:120px;
+margin-top:10px;
+padding:10px;
+border-radius:6px;
+resize:none;
+}
+
+#camera{
+margin-top:10px;
+width:100%;
+}
+
+#historico{
+text-align:left;
+margin-top:15px;
+}
+
+</style>
+</head>
+
+<body>
+
+<h2>SCANFOOD 🛒</h2>
+
+<div class="container" id="login">
+
+<h3>Login</h3>
+
+<input id="user" placeholder="Usuário">
+<input id="pass" type="password" placeholder="Senha">
+
+<button onclick="criarConta()">Criar conta</button>
+<button onclick="entrar()">Entrar</button>
+
+</div>
+
+<div class="container" id="app" style="display:none">
+
+<input id="barcode" placeholder="Código de barras">
+
+<input id="alergias" placeholder="Alergias (ex: leite, soja)">
+
+<button id="btnCamera">📷 Escanear código</button>
+
+<div id="camera"></div>
+
+<textarea id="resultado" readonly></textarea>
+
+<label style="display:block;text-align:left;margin-top:10px">
+<input type="checkbox" id="termos"> Aceito os termos de uso
+</label>
+
+<p style="font-size:12px;text-align:left">
+Este site é apenas uma ferramenta de apoio. Informações podem conter erros.
+</p>
+
+<button id="btnVerificar">Verificar</button>
+<button id="btnLimpar">Limpar</button>
+
+<div id="historico">
+<h4>Histórico</h4>
+<ul id="lista"></ul>
+</div>
+
+</div>
+
+<script>
+
+// ====== BANCO DE PRODUTOS ======
+
+const produtos={
+
+"7896423420180":{
+nome:"Snickers",
+ingredientes:[
+"açúcar",
+"amendoim",
+"xarope de glicose",
+"leite em pó",
+"manteiga de cacau",
+"massa de cacau",
+"lactose",
+"sal",
+"clara de ovo",
+"lecitina de soja"
+]
+}
+
+};
+
+// ====== LOGIN ======
+
+let usuario=null;
+
+function criarConta(){
+
+let u=user.value;
+let s=pass.value;
+
+localStorage.setItem("user_"+u,s);
+
+alert("Conta criada");
+
+}
+
+function entrar(){
+
+let u=user.value;
+let s=pass.value;
+
+if(localStorage.getItem("user_"+u)==s){
+
+usuario=u;
+
+login.style.display="none";
+app.style.display="block";
+
+carregarHistorico();
+
+}else{
+
+alert("Login inválido");
+
+}
+
+}
+
+// ====== HABILITAR BOTÃO ======
+
+termos.addEventListener("change",()=>{
+
+if(termos.checked){
+
+btnVerificar.style.opacity="1";
+btnVerificar.style.pointerEvents="auto";
+
+}else{
+
+btnVerificar.style.opacity=".5";
+btnVerificar.style.pointerEvents="none";
+
+}
+
+});
+
+// ====== VERIFICAR PRODUTO ======
+
+btnVerificar.onclick=()=>{
+
+let codigo=barcode.value;
+
+let alerg=alergias.value
+.toLowerCase()
+.split(",")
+.map(a=>a.trim());
+
+let res=resultado;
+
+if(!produtos[codigo]){
+
+res.style.color="red";
+res.value="Produto não encontrado";
+
+return;
+
+}
+
+let p=produtos[codigo];
+
+let risco=false;
+
+alerg.forEach(a=>{
+
+p.ingredientes.forEach(i=>{
+
+if(i.includes(a)) risco=true;
+
+});
+
+});
+
+let txt=`Produto: ${p.nome}
+
+Ingredientes: ${p.ingredientes.join(", ")}
+
+`;
+
+if(risco){
+
+res.style.color="red";
+txt+="🚫 Contém ingrediente da sua alergia";
+
+}else{
+
+res.style.color="green";
+txt+="🟢 Seguro para consumo";
+
+}
+
+res.value=txt;
+
+salvarHistorico(p.nome);
+
+}
+
+// ====== LIMPAR ======
+
+btnLimpar.onclick=()=>{
+
+barcode.value="";
+alergias.value="";
+resultado.value="";
+
+}
+
+// ====== HISTÓRICO ======
+
+function salvarHistorico(prod){
+
+let h=JSON.parse(localStorage.getItem("hist_"+usuario)||"[]");
+
+h.push(prod);
+
+localStorage.setItem("hist_"+usuario,JSON.stringify(h));
+
+carregarHistorico();
+
+}
+
+function carregarHistorico(){
+
+let h=JSON.parse(localStorage.getItem("hist_"+usuario)||"[]");
+
+lista.innerHTML="";
+
+h.forEach(p=>{
+
+let li=document.createElement("li");
+
+li.textContent=p;
+
+lista.appendChild(li);
+
+});
+
+}
+
+// ====== PEDIR PERMISSÃO DA CÂMERA ======
+
+btnCamera.onclick=async()=>{
+
+try{
+
+await navigator.mediaDevices.getUserMedia({video:true});
+
+iniciarScanner();
+
+}catch{
+
+alert("Você precisa permitir o uso da câmera");
+
+}
+
+}
+
+// ====== INICIAR SCANNER ======
+
+function iniciarScanner(){
+
+Quagga.init({
+
+inputStream:{
+type:"LiveStream",
+target:camera,
+constraints:{facingMode:"environment"}
+},
+
+decoder:{
+readers:["ean_reader","ean_13_reader","upc_reader"]
+}
+
+},function(err){
+
+if(err){
+
+alert("Erro ao iniciar câmera");
+return;
+
+}
+
+Quagga.start();
+
+});
+
+}
+
+// ====== DETECTAR CÓDIGO ======
+
+Quagga.onDetected(function(data){
+
+barcode.value=data.codeResult.code;
+
+Quagga.stop();
+
+});
+
+</script>
+
+</body>
+</html>
